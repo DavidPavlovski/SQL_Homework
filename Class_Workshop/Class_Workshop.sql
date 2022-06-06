@@ -81,4 +81,77 @@ create table PizzaToppings(
 	)
 )
 go
-create or alter function FullName(@UserId int)returns nvarchar(255)asbegindeclare @FullName nvarchar(255)select @FullName = CONCAT(FirstName , ' ' , LastName) from [User]where [User].Id = @UserIdreturn @FullNameendgocreate or alter view vv_NotDelivered asselect p.OrderId as OrderId,p.PizzaSizeId , dbo.FullName(u.Id) as FullName, p.Name as PizzaName from [Order] ojoin [User] u on o.UserId = u.Idjoin [Pizza] p on o.Id = p.OrderIdwhere o.IsDelivered = 0goselect * from vv_NotDeliveredgocreate or alter procedure GetOrderPrice(@OrderId int ,@DeliveryCost decimal, @TotalPrice decimal(4,2) output)asbeginset @TotalPrice = (select sum(t.Price + p.Price + @DeliveryCost)from PizzaToppings ptjoin Pizza p on pt.PizzaId = p.Id	join Topping t on pt.ToppingId = t.Idwhere p.OrderId = @OrderId)endgocreate or alter view vv_MostPopularPizzasasselect p.Name , COUNT(p.name) as OrdersCountfrom [Order] ojoin Pizza p on o.Id = p.OrderIdgroup by p.Namegoselect * from vv_MostPopularPizzasorder by OrdersCount descgocreate or alter view vv_MostPopularToppingsasselect t.Name as ToppingName,COUNT(t.Name) as ToppingOrderCount from PizzaToppings ptjoin Pizza p on pt.PizzaId = p.Idjoin Topping t on pt.ToppingId = t.Idgroup by t.Name , t.Idgoselect * from vv_MostPopularToppingsorder by ToppingOrderCount descgocreate or alter view vv_PizzaOrdersByUserasselect dbo.FullName(u.Id) as CustomerName , count(u.Id) as NumberOfPizzasOrderedfrom [Order] o join [User] u on o.UserId = u.Idjoin [Pizza] p on o.Id = p.OrderIdgroup by dbo.FullName(u.Id) , u.Idgoselect * from vv_PizzaOrdersByUserorder by NumberOfPizzasOrdered desc
+
+create or alter function FullName(@UserId int)
+returns nvarchar(255)
+as
+begin
+
+declare @FullName nvarchar(255)
+select @FullName = CONCAT(FirstName , ' ' , LastName) from [User]
+where [User].Id = @UserId
+return @FullName
+end
+go
+
+create or alter view vv_NotDelivered 
+as
+select p.OrderId as OrderId,p.PizzaSizeId , dbo.FullName(u.Id) as FullName, p.Name as PizzaName 
+from [Order] o
+join [User] u on o.UserId = u.Id
+join [Pizza] p on o.Id = p.OrderId
+where o.IsDelivered = 0
+go
+
+select * from vv_NotDelivered
+go
+
+create or alter procedure GetOrderPrice(@OrderId int ,@DeliveryCost decimal, @TotalPrice decimal(4,2) output)
+as
+begin
+
+set @TotalPrice = (select sum(t.Price + p.Price + @DeliveryCost)
+from PizzaToppings pt
+join Pizza p on pt.PizzaId = p.Id	
+join Topping t on pt.ToppingId = t.Id
+where p.OrderId = @OrderId)
+
+end
+go
+
+create or alter view vv_MostPopularPizzas
+as
+select p.Name , COUNT(p.name) as OrdersCount
+from [Order] o
+join Pizza p on o.Id = p.OrderId
+group by p.Name
+go
+
+select * from vv_MostPopularPizzas
+order by OrdersCount desc
+go
+
+create or alter view vv_MostPopularToppings
+as
+select t.Name as ToppingName,COUNT(t.Name) as ToppingOrderCount 
+from PizzaToppings pt
+join Pizza p on pt.PizzaId = p.Id
+join Topping t on pt.ToppingId = t.Id
+group by t.Name , t.Id
+go
+
+select * from vv_MostPopularToppings
+order by ToppingOrderCount desc
+go
+
+create or alter view vv_PizzaOrdersByUser
+as
+select dbo.FullName(u.Id) as CustomerName , count(u.Id) as NumberOfPizzasOrdered
+from [Order] o 
+join [User] u on o.UserId = u.Id
+join [Pizza] p on o.Id = p.OrderId
+group by dbo.FullName(u.Id) , u.Id
+go
+
+select * from vv_PizzaOrdersByUser
+order by NumberOfPizzasOrdered desc
